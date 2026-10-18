@@ -1,33 +1,37 @@
 name: Build HAMRAH JARVIS APK
-
 on:
   workflow_dispatch:
-
+  push:
+    branches: [ main ]
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Unpack source
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Extract project from ZIP
         run: |
-          rm -rf src && mkdir src
-          unzip -q friday-android-source.zip -d src
-
-      - uses: actions/setup-java@v4
+          unzip -q hamrah-jarvis-android-source.zip -d /tmp/src
+          F=$(find /tmp/src -name settings.gradle | head -n 1)
+          test -n "$F" || { echo "settings.gradle not found in ZIP"; ls -R /tmp/src; exit 1; }
+          cp -r "$(dirname "$F")"/. .
+          printf '\nkotlin.jvm.target.validation.mode=warning\n' >> gradle.properties
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
-
-      - uses: gradle/actions/setup-gradle@v4
+          java-version: '17'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.7"
-
+          gradle-version: '8.9'
       - name: Build debug APK
-        working-directory: src
-        run: gradle assembleDebug --no-daemon --stacktrace
-
-      - uses: actions/upload-artifact@v4
+        run: gradle assembleDebug --no-daemon
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          name: Friday-debug-apk
-          path: src/app/build/outputs/apk/debug/app-debug.apk
+          name: hamrah-jarvis-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
